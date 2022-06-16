@@ -10,7 +10,7 @@
 
 ## 2、服务端配置
 
-参照https://blog.dreamtobe.cn/openwrt_openvpn/进行配置
+参照https://blog.dreamtobe.cn/openwrt_openvpn/ 进行配置
 
 有几点需要补充或修改：
 
