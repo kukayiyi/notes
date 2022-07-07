@@ -85,10 +85,10 @@ git add ./
 git commit -m "first commit"
 ```
 
-第三步，使用git push将本地仓库内容提交到远程仓库。这一步也许需要输入github登录用户名和密码。
+第三步，使用git push将本地仓库内容提交到远程仓库。这一步也许需要输入github登录用户名和密码。使用-u选项可以设置push默认值，使得下次push可以直接使用"git push"即可按上次设置push。
 
 ```
-git push -u origin main -f
+git push -u origin main
 ```
 
 查看github对应的远程仓库，本地仓库内容应该被全部上传至远程了。这样的操作会丢失仓库里原本的README.md文件，在远程仓库新建后，使用pull命令同步
@@ -125,7 +125,7 @@ hint: See the 'Note about fast-forwards' in 'git push --help' for details.
  git push -u origin main -f 
 ```
 
-#### WARING:避免重复输入账号密码的方法
+#### ~~WARING:避免重复输入账号密码的方法~~（现在git使用ssh已无需设置或输入密码，除非验证失败）
 
 每次pull操作或push操作都会被要求输入账号密码，这相当不利于进行频繁的操作。
 
@@ -145,7 +145,7 @@ git config credential.helper ‘cache –timeout=3600’
 
 以上命令可使得密码只保存一小时（3600s），如果不加timeout参数默认为15分钟。
 
-## 4.使用脚本实现一键提交
+## ~~使用脚本实现一键提交~~（不实用，已废弃）
 
 编写bat脚本自动提交仓库。注意：需要配置保存密码。
 
