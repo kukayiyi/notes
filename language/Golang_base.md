@@ -188,3 +188,254 @@ fmt.Println(imag(x))           // 输出虚部 "2"
 
 布尔：不能隐式转化为0和1！if 1是无法通过编译的，if bool(1)也不行，没有这种转换方式。
 
+### 6、格式化输出对照
+
+```go
+占位符     说明                           举例                   输出
+%v        相应值的默认格式。             Printf("%v", people)   {egon}，
+%+v       打印结构体时，会添加字段名      Printf("%+v", people)  {Name:egon}
+%#v       相应值的Go语法表示            Printf("#v", people)   main.Human{Name:"egon"}
+%T        相应值的类型的Go语法表示       Printf("%T", i)            int
+%%        字面上的百分号，并非值的占位符   Printf("%%")                %
+%t          true 或 false       		  Printf("%t", true)      		  true
+%d      十进制表示                             Printf("%d", 0x12)          18
+%b      二进制表示                             Printf("%b", 5)             101
+%o      八进制表示                             Printf("%d", 10)            12
+%x      十六进制表示，字母形式为小写 a-f         Printf("%x", 13)             d
+%X      十六进制表示，字母形式为大写 A-F         Printf("%x", 13)             D
+%c      相应Unicode码点所表示的字符              Printf("%c", 0x4E2D)        中
+%q      单引号括起来的字符字面值，由Go语法安全地转义 Printf("%q", 0x4E2D)       '中'
+%U      Unicode格式：U+1234，等同于 "U+%04X"     Printf("%U", 0x4E2D)       U+4E2D
+占位符     说明                              举例            输出
+%b      无小数部分，二进制指数的科学计数法,Printf("%b\n",a)
+        与 strconv.FormatFloat 的 'b' 转换格式一致。例如 -123456p-78
+%e      科学计数法，例如 -1234.456e+78        Printf("%e", 10.2)     1.020000e+01
+%E      科学计数法，例如 -1234.456E+78        Printf("%e", 10.2)     1.020000E+01
+%f      有小数点而无指数，例如 123.456        Printf("%f", 10.2)     10.200000
+                                          Printf("%.1f", 10.35)   10.4
+%s      输出字符串表示（string类型或[]byte)   Printf("%s", []byte("Go语言"))  Go语言
+%q      双引号围绕的字符串，由Go语法安全地转义  Printf("%q", "Go语言")         "Go语言"
+%x      十六进制，小写字母，每字节两个字符      Printf("%x", "golang")         676f6c616e67
+%X      十六进制，大写字母，每字节两个字符      Printf("%X", "golang")       676F6C616E67
+%p            十六进制表示，前缀 0x       fmt.Printf("%p\n", &name)       0xc000010200
+```
+
+## 3、流程控制和函数方法
+
+只收录和其他语言相比区别较大的用法
+
+### 1、for
+
+```go
+// 1、循环数组
+names:=[4]string{"egon","张三","李四","王五"}
+for i,v:=range names{
+ fmt.Println(i,v)
+}
+```
+
+### 2、switch
+
+```go
+day := 1 
+switch day { 
+    case 1:    
+    fmt.Println("星期一")
+    case 6,0:
+    fmt.Println("休息日")
+    fallthrough // 下一个case分支无论条件是否成立都会执行
+    case level >= 10:
+    fmt.Println("钻石玩家")
+    default:
+    fmt.Println("无效的输入！")
+}
+```
+
+### 3、函数
+
+```Go
+func 函数名(参数)(返回值){
+    函数体
+}
+func add(x int,y ...int) int { 	// 可变参数，必须放在最后
+    fmt.Println(x,y)
+    sum := 0
+    for _, v := range y {
+        sum += v
+    }
+    return sum
+}
+func divmod(x, y int) (int, int) {		// 多个返回值
+    res1 := x / y
+    res2 := x % y
+    return res1, res2
+}
+```
+
+```go
+// 高阶用法
+// go支持函数式编程，函数可以当值处理
+func square(n int) int { return n * n }
+f := square
+fmt.Println(f(3)) // "9"
+
+// 函数自然也可以当做返回值
+func add(x, y int) int {
+    return x + y
+}
+func sub(x, y int) int {
+    return x - y
+}
+func do(s string) (func(int, int) int, error) {
+    switch s {
+    case "+":
+        return add, nil
+    case "-":
+        return sub, nil
+    default:
+        err := errors.New("无法识别的运算符")
+        return nil, err
+    }
+}
+func main() {
+    f,err:=do("-")
+    fmt.Println(f,err)
+    fmt.Println(f(111,222))
+}
+
+// 既然是函数式编程，当然是要涉及匿名函数和闭包
+func counter(start int) func(int) int{
+    f:= func(n int) int{	// 定义一个匿名函数
+        start += n  // 修改外层函数的变量start
+        return start
+    }
+    return f
+}
+```
+
+### 4、defer和闭包与匿名函数
+
+```go
+func main() {	// 使用defer会在函数结束时逆序执行
+    fmt.Println("start...")
+    defer fmt.Println(1)
+    defer fmt.Println(2)
+    defer fmt.Println(3)
+    fmt.Println("end...")
+}
+// start...
+// end...
+// 3
+// 2
+// 1
+
+// 下例输出10，defer执行时类似压栈，保存的是压入时候的值
+x := 10
+defer func(a int) {
+		fmt.Println(a)
+}(x)
+x++
+
+//defer的执行实际及其对返回值的影响是go的经典面试题，较复杂。只能通过用例理解
+// Go语言中函数的return不是原子操作，在底层是分为两步来执行
+// 第一步：返回值赋值
+// defer
+// 第二步：真正的RET返回
+// 函数中如果存在defer，那么defer执行的时机是在第一步和第二步之间
+func f1() int {
+    x:=5
+    defer  func(){
+        x++ // 修改的是x不是返回值
+    }()
+    return x // 没有返回值变量的情况下，相当于声明了一个临时变量i，x=:5，i=x,x++，return i
+}
+func f2()(x int){
+   defer func(){
+        x++
+   }()
+   return 5 // 有返回值变量，则操作返回值变量。x=5，x++，return x
+}
+func f3() (y int){
+    x:=5
+    defer func(){
+        x++ // 修改的是x
+    }()
+    return x  // y = x = 5，x++，return y
+}
+func f4()(x int){
+   defer func (x int){
+       x++ // 改变的是函数中x的副本
+   }(x)
+    return 5 // 虽然返回值变量是x，但是内部函数参数也是x，根据作用域，操作的是内部的x
+}
+func f5()(x int){
+   defer func (x int) int {
+       x++
+       return x 
+   }(x)
+    return 5 // 执行了一个完整的函数，x=5，f(5)，return x，传参传的变量值当然不变
+}
+func f6()(x int){
+   defer func (x *int) *int {
+       (*x)++
+       return x
+   }(&x)
+   return 5 // 和上例相比传了指针，当然变了
+}
+func main(){
+   fmt.Println(f1()) // 5
+   fmt.Println(f2()) // 6
+   fmt.Println(f3()) // 5
+   fmt.Println(f4()) // 5
+   fmt.Println(f5()) // 5
+   fmt.Println(f6()) // 6
+}
+
+// defer的广泛用法是用来释放锁、关闭资源
+func ReadFile(filename string) ([]byte, error) {
+    f, err := os.Open(filename)
+    if err != nil {
+        return nil, err
+    }
+    defer f.Close()
+    return ReadAll(f)
+}
+```
+
+### 5、异常处理
+
+go使用defer、panic、recover来处理异常
+
+```Go
+func funcB() {
+    defer func() {
+        err := recover()	//如果程序出出现了panic错误,可以通过recover恢复过来，recover必须在defer中
+        if err != nil {
+            fmt.Println("recover in B")
+        }
+    }()
+    panic("panic in B")		// 使用panic来引发异常
+}
+
+// recover后，会返回panic引发的位置。看下面的例子来理清逻辑
+func G() {
+    defer func() {
+        fmt.Println("c")
+    }()
+    F()
+    fmt.Println("继续执行")
+}
+func F() {
+    defer func() {
+        if err := recover(); err != nil {
+            fmt.Println("捕获异常:", err)
+        }
+        fmt.Println("b")
+    }()
+    panic("a")
+}
+// 捕获异常: a
+// b
+// 继续执行
+// c
+```

@@ -1,6 +1,6 @@
 # Golang 复杂类型
 
-## 4、复杂数据结构
+## 3、复杂数据结构
 
 ### 1、字符串
 
@@ -64,7 +64,7 @@ stirngs.HasSuffix(s string,suffix string) bool: // 判断字符串s是否以suff
 
 ### 2、数组与切片
 
-数组：一句话，不好用，不常用，不推荐用。
+**数组**：一句话，不好用，不常用，不推荐用，但是是切片的基础。
 
 ```go
 var a [3]int 	// 初始化
@@ -91,9 +91,208 @@ func modifyArray(x [3]int) { // 此函数什么作用都没有
 }
 ```
 
-切片：动态数组
+**切片**：动态数组
 
+```go
+var arr = [5]int{0, 1, 2, 3, 4} 	// 切片的底层还是数组
+s := arr[1:4]	// 通过“切数组”的方式创建切片
+r := s[:2]		//当然也可以切切片
 
+var s []int 	// 直接声明一个slice，会是一个nil值，没有底层数组不占空间。
+fmt.Println(s == nil) // true
 
+// 要一开始就有数组空间，使用make，参数分别是类型，长度，容量，容量可省略（将会等于长度）
+s:=make([]int, 0, 4) 	// 会生成一个匿名底层数组，并使切片指向它
 
+s2 := []int{1, 2, 3, 4, 5} 		// 和数组一样，也可以使用指定元素初始化，只要不指定长度
 
+s:=[]int{111,222,333}	// 超过容量的访问是不允许的
+s[3]=444 // 异常：index out of range [3] with length 3
+
+// 要为切片添加元素，使用append
+var s []int // // s == nil
+s=append(s,111)		// 1、可以一次添加一个元素
+s=append(s,222,333,444)		// 2、也可以添加多个元素
+s2:=[]int{555,666}		// 3、也添加另一个切片中的元素，但是需要在后面加三个点...
+s=append(s,s2...)
+fmt.Println(s) // [111 222 333 444 555 666]
+
+// go没有切片中删除元素的api，使用append的添加元组来变相的删除元素
+a := []int{30, 31, 32, 33, 34, 35, 36, 37}
+// 要删除索引为2的元素
+a = append(a[:2], a[3:]...) // 注意第二个参数后面要加三个点...
+fmt.Println(a) //[30 31 33 34 35 36 37]
+
+// 使用sort包实现切片排序
+var a = [...]int{3, 7, 8, 9, 1}
+sort.Ints(a[:])
+fmt.Println(a) // [1 3 7 8 9]
+
+// 简单的赋值并不能达到复制切片的效果，因为切片本质是指向数组的指针，赋值会导致新切片仍然指向旧数组
+copy(s2, s1)     // 使用copy来深拷贝。注意：源切片s1在后，目标切片s2在前
+```
+如同Java一样，作为动态数组，slice的底层仍然也是数组，然而可能更贴切的一个说法是，切片是“附着”在数组上的，因为同一个数组上会有很多个切片分别指向数组的不同的片段，go是允许这种情况的，这些切片共享一个底层数组（即数据修改会互相影响）
+
+![img](image/ch4-01.png)
+
+```go
+months := [...]string{1: "January", /* ... */, 12: "December"} // 创建一个数组作为底层
+Q2 := months[4:7]		// 对数组进行切片
+summer := months[6:9]
+// slice的两个关键属性：len长度和cap容量
+// len：切片的实际长度，cap：容量，和Java的arraylist几乎一样
+// 注意，由于slice不一定从数组第一个元素开始，所以从数组切下来的切片默认容量都是到数组的最后一个元素为止的长度
+summer[0]="JUNE"	// 改变一个切片，其他相关切片内容也会变，证明是共用底层数组
+fmt.Println(Q2) // [April May JUNE]
+fmt.Println(months) // [ ...... JUNE ......]
+// 切片可以超过长度继续切，不超过容量就行
+fmt.Println(summer[:7]) // 得到了一个更长的切片，元素为：[JUNE July August September October November December]
+
+// 切片是值类型，即引用，所以不能直接比较（通不过编译），函数传的也是本身
+func reverse(s []int) {
+    for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+        s[i], s[j] = s[j], s[i]
+    }
+}
+func main() {
+    x := [5]int{1, 2, 3, 4, 5}
+    
+    // 1、传入切片，切片引用了数组的全部元素，此时和传入数组指针的效果一样
+    reverse(x[:]) 
+    fmt.Println(x) // 数组已经被改成了：[5 4 3 2 1]
+    
+    // 2、传入切片，切片只引用了前两个元素
+    reverse(x[:2]) //
+    fmt.Println(x) // 只翻转了前两个元素：[4 5 3 2 1]
+    
+    // 3、传入切片，切片只引用了从索引2一直到最后所有的元素
+    reverse(x[2:])
+    fmt.Println(x) // [4 5 1 2 3]
+}
+```
+
+### 3、map
+
+```go
+var m map[string]int		// 和slice类似，使用缺省值声明的map不分配空间，相当于nil
+fmt.Println(m==nil) // true
+var m = make(map[string]int)		// 同样的，使用make来构建map，以分配空间
+scoreMap:=map[string]int{		// 带字面量的初始化
+    "egon":99,
+    "铁蛋":100,
+    "铜蛋":88,
+}
+var scoreMap = map[string]int{}		// 构建一个有空间的map的方法，只是多加了一个{}
+fmt.Println(scoreMap == nil) // false
+
+var m = make(map[string]string)
+m["name"]="egon"		// 增加元素
+delete(m,"gender")		// 删除元素
+fmt.Println(m["name"]) // egon 查找元素
+// 注意：以上操作都是安全的，即，即使元素不在map中，删和查也不会报错。查找元素会返回类型0值
+// 这就带来一个问题，如何判断元素是不在map中还是就是为0呢？
+age1,ok:=ages["张三"]		// 访问map的第二个返回值是一个bool，若为true则元素存在
+if age, ok := ages["bob"]; !ok { /* ... */ }		// 一种常见用法
+
+for k,v := range ages {		// 遍历，第一第二参数分别为key和value
+    fmt.Println(k,v)
+}
+```
+
+map也是不能寻址（内部元素）、不能比较的
+
+#### 扩展：map实现原理
+
+![img](image/v2-a8fbef952441e788d882d0656c2cf091_1440w.jpg)
+
+https://zhuanlan.zhihu.com/p/495998623
+
+扩充和总结：
+
+hmap类似Java中的Hashmap表层数组，buckets是一个桶数组，其中的桶bmap是实际存储的基本单元，bmap类似Java拉链法的链表。一个bmap可以存8个kv对，装满以后会使用下一个bmap作为溢出桶继续存。
+
+存数据的流程是，在buckets中使用哈希算法决定装在哪个桶（bmap）里，先遍历桶查看是否有重复，若无，找到第一个空缺位存入。若桶满，则查找下一个溢出桶。若数据达到一定规模，会触发扩容，每次扩容容量*2，这会导致元素重新排列，可能会落入另一个桶中。
+
+取数据的流程和存差不多，但要遍历一整条溢出桶链，因此map不会装满再扩容，以免效率太低。
+
+map线程不安全。
+
+### 4、type
+
+定义衍生类型与类型别名
+
+```go
+type NewInt int  // NewInt具备int类型的特性，但它们是两种类型
+var x NewInt = 10
+var y int = 10
+fmt.Println(x+y) // panic: (mismatched types NewInt and int)
+
+type MyInt = int
+var a MyInt = 10  
+fmt.Printf("%T",a)  // 打印a的类型就是int
+```
+
+最主要的作用是声明结构体（struct）
+
+```go
+// 类型相同的字段也可以写在同一行
+type Person struct {
+    name, sex, city string // 写在一行
+    age             int
+    hobbbies        []string
+    sanwei          map[string]float64
+}
+
+var p1 Person  		// 结构体的“实例化”
+fmt.Println(p1.name)            // 空串，默认0值
+p1.name = "egon"		// 赋值
+
+var p1 Person = Person{		// 实例化的同时赋值的第一种方法，使用指定属性名的方式，可以不全赋值，默认0值
+    name:     "egon",
+    hobbbies: []string{"read", "music"},
+}
+
+var p1 Person = Person{		// 或者，按顺序列表，这需要记住属性的顺序，且必须给所有属性赋值，所以不常用
+    "egon",
+    18,
+    "male",
+    "Shanghai",
+    []string{"read", "music"},
+    map[string]float64{
+        "xw": 200.3,
+        "yw": 30.3,
+        "tw": 200.5,
+    },
+}
+
+// 结构体是值类型，传参会传拷贝，修改不便而且代价太大。使用结构体指针
+var p2 *Person
+fmt.Println(p2 == nil)  // true 还未分配空间
+p3:=new(Person)
+p4:=&Person{}  // 与new等同
+p4 = &Person{		// 声明+赋值
+    name: "egon",
+    age: 18,
+}
+
+(*p3).name = "egon"
+fmt.Println(p3.name)  // egon (*)可省略
+
+// 结构体中当然可以嵌套别的结构体
+type Address struct {
+    province,city string
+}
+type Person struct {
+    name string
+    addr Address
+}
+// 要访问Person的province字段，需要p.addr.province，如此增长太麻烦了，可以使用提升字段
+type Person struct {
+    name string
+    Address  // 匿名字段
+}
+fmt.Println(p.Address.province) // 匿名字段默认使用类型名作为字段
+fmt.Println(p.province) // 匿名字段可以省略，称之为提升字段
+```
+
+结构体如果成员全部可比较，则两个实例也可以互相比较，否则不行。
