@@ -232,7 +232,9 @@ var a MyInt = 10
 fmt.Printf("%T",a)  // 打印a的类型就是int
 ```
 
-最主要的作用是声明结构体（struct）
+### 5、结构体
+
+type最主要的作用之一是声明**结构体（struct）**
 
 ```go
 // 类型相同的字段也可以写在同一行
@@ -295,4 +297,315 @@ fmt.Println(p.Address.province) // 匿名字段默认使用类型名作为字段
 fmt.Println(p.province) // 匿名字段可以省略，称之为提升字段
 ```
 
+函数和方法的区别是，函数可以“无所依靠”，方法指的是作为对象的成员的函数。在一些纯面向对象语言中，因为一切皆对象，所以函数和方法是合一的，但go中明显不是。如何为结构体定义成员方法呢？
+
+```go
+func (接收者变量 接收者类型) 方法名(参数列表) (返回参数) {
+    函数体
+}
+
+// 比如
+// 自定义的结构体类型Person 
+type Person struct {
+    name string
+    age  int
+}
+// 这是一种构造函数的写法
+func newPerson(name string, age int) *Person {
+    return &Person{
+        name: name,
+        age:  age,
+    }
+}
+// 绑定方法
+func (p Person) tell()  {
+    fmt.Printf("名字:%v,年龄:%v",p.name,p.age)
+}
+func main() {
+    p:=newPerson("egon",18)
+    p.tell()
+}
+
+// 在写接收者的时候，可以是值类型或是指针类型的接收者
+//当方法作用于值类型接收者时，Go语言会在代码运行时将接收者的值复制一份。在值类型接收者的方法中可以获取接收者的成员值，但修改操作只是针对副本，无法修改接收者变量本身。
+func (p Person) setAge1(age int)  {
+    p.age = age
+}
+//当方法作用于值类型接收者时，由于指针的特性，在方法内修改接收者指针的任意字段，会直接修改传入的原变量。这种方式就十分接近于其他语言中面向对象中的`this`或者`self`。
+func (p *Person) setAge2(age int)  {
+    p.age = age
+}
+func main() {
+    p:=newPerson("egon",18)
+    p.setAge1(19)
+    fmt.Println(p.age) // 仍然为18
+    p.setAge2(20)
+    fmt.Println(p.age)  // 改为20
+}
+
+// 然而，如果成员是slice或者map，由于是引用类型，用方法赋值会造成意想不到的后果
+type Person struct {
+    name   string
+    age    int8
+    dreams []string
+}
+func (p *Person) SetDreams(dreams []string) {
+    p.dreams = dreams
+}
+func main() {
+    p1 := Person{name: "egon", age: 18}
+    data := []string{"吃饭", "睡觉", "打豆豆"}
+    p1.SetDreams(data)
+    // data与p1.dreams将会互相影响
+    data[1] = "不睡觉"
+    fmt.Println(p1.dreams) 
+}
+// 用copy深拷贝来解决这个问题
+func (p *Person) SetDreams(dreams []string) {
+    p.dreams = make([]string,len(dreams))
+    copy(p.dreams,dreams)
+}
+```
+
 结构体如果成员全部可比较，则两个实例也可以互相比较，否则不行。
+
+### 6、接口
+
+type另一重量级使用是声明接口
+
+https://zhuanlan.zhihu.com/p/386675181
+
+```go
+type 接口类型名 interface{		// 定义接口，接口中定义方法，不能有实现
+    方法名1( 参数列表1 ) 返回值列表1
+    方法名2( 参数列表2 ) 返回值列表2
+    …
+}
+
+// 那么定义以后如何implements？实际上go中的接口实现是隐式的、非侵入式的
+// 意思是，只要有一个结构体，且它用成员方法实现了所有接口中的方法，那就算实现了接口，这代表着接口是否存在完全和结构体没关系，和Java中的接口与实现类不同
+// 1、定义接口
+type animaler interface {
+    eat()
+    sleep()
+}
+// 2、定义接口提
+type dog struct {
+    name string
+    class string
+}
+// 3、实现接口
+// 3.1、实现接口内的方法eat
+func (d dog) eat()  {
+    fmt.Printf("一只名为【%v】的【%v】正在吃东西\n",d.name,d.class )
+}
+// 3.2、实现接口内的方法sleep
+func (d dog) sleep()  {
+    fmt.Printf("一只名为【%v】的【%v】正在睡觉\n",d.name,d.class )
+}
+// 3.3、结构体d当然可以实现接口之外的方法，没有影响
+func (d dog) run()  {
+    fmt.Printf("一只名为【%v】的【%v】正在奔跑\n",d.name,d.class )
+}
+func main() {
+    d:=dog{
+        name: "天蓬元帅",
+        class: "哈士奇",
+    }
+    d.eat()
+    d.sleep()
+    d.run()
+}
+
+// 那么定义一个接口有什么用？
+var a animaler  // 声明了一个接口类型变量
+a=d  // 只有变量d完全实现了接口的所有方法，才算是实现了接口，此处的赋值才会成功
+a.eat()
+a.sleep()
+a.run() // 错误，d赋值给接口变量a之后，a只能调用接口规定的属性，不能调用d所有的属性
+// 显然，无需考虑具体的类型，只要知道一个接口，那么按接口的操作就完全可以操作其实现结构体
+
+var _ animaler = &dog{}  // 使用这种方法来验证结构体是否是某接口的实现类
+
+// 实现方法的接收者可以是值也可以是指针，若是值，则赋值时可以是结构体本身也可以是结构体指针
+func (d dog) eat() {
+    fmt.Printf("一只名为【%v】的【%v】正在吃东西\n", d.name, d.class)
+}
+// 实现接口内的方法sleep====>接收者也为值类型
+func (d dog) sleep() {
+    fmt.Printf("一只名为【%v】的【%v】正在睡觉\n", d.name, d.class)
+}
+x=d  // 既可以将实例化好的结构体对象赋值给接口变量 
+x.eat()
+x.sleep()
+x=&d  // 也可以将实例化好的结构体对象的指针赋值给接口变量
+x.eat()  // go语法糖，相当于(*x).eat(),下同
+x.sleep()
+
+// 如果接收者类型是指针，则赋值也必须是结构体指针
+func (d *dog) eat() {
+    fmt.Printf("一只名为【%v】的【%v】正在吃东西\n", d.name, d.class)
+}
+// 3.2、实现接口内的方法sleep====>接收者也为值类型
+func (d *dog) sleep() {
+    fmt.Printf("一只名为【%v】的【%v】正在睡觉\n", d.name, d.class)
+}
+//x=d  // 不能将实例化好的结构体对象赋值给接口变量
+//x.eat()
+//x.sleep()
+x=&d  // 只能将实例化好的结构体对象的指针赋值给接口变量
+x.eat()  // go语法糖，相当于(*x).eat(),下同
+x.sleep()
+
+// 接口当然可以嵌套其他缺口
+type People interface {
+    think()
+}
+type Animal interface {
+    eat()
+    drink()
+    la()
+    sa()
+}
+type Student interface {
+    People
+    Animal
+    learn()
+}
+```
+
+空接口
+
+```go
+// go中最灵活的概念 空接口，因为没有属性，所以任何对象都可以当做它的实现
+type obj interface {} 
+var x interface{}  // 匿名接口
+x="hello"
+fmt.Printf("%T:%v\n",x,x)  // string:hello
+x=18
+fmt.Printf("%T:%v\n",x,x)  // int:18
+x=true
+fmt.Printf("%T:%v\n",x,x)  // bool:true
+
+// 函数参数值接受任何类型参数，用空接口
+func myprint(x interface{}) {
+fmt.Printf("%T:%v\n",x,x)
+}
+func main() {
+myprint("hello")
+myprint(18)
+}
+
+// 复合类型的元素也可以用空接口
+var info = make(map[string]interface{})
+info["name"]="egon"
+info["age"]=18
+info["gender"]="male"
+info["hobbies"]=[]string{"read","music"}
+fmt.Println(info["hobbies"]) 
+// 强调！！！我们是将”egon”、18、“male”、[]string{"read","music"}这些类型的值赋值给了空接口变量，空接口变量确实可以接收它们，但是接收了之后通过空接口变量在使用它们时，只能用接口内的属性，无法使用原类型中与接口不一致的属性或操作，这一点我们在第四章里已经介绍过了, 所以下述操作会报错
+fmt.Println(info["hobbies"][0]) // info["hobbies"]取出来的是一个接口类型，无法进行索引操作
+// 同理下述操作也会报错
+info["age"] + 111 // 接口类型不能与int类型相加
+
+// 解决方法是类型断言，类似强制类型转换
+src_type,ok:=info["hobbies"].([]string) // 如果ok为true，那么src_type拿到的就是原类型
+if !ok {
+fmt.Println("类型断言失败...")
+}
+fmt.Println(src_type[0]) // 结果为read，可以按照原类型来进行操作了
+
+// 或者只用type-switch
+switch v := x.(type) { // .(type)可以返回x对应类型的值，但.(type)只能在switch内使用
+    case string: // 如果是字符串类型，那么我们可以调用字符串相关的操作
+    fmt.Println(strings.ToUpper(v))
+    case int:
+    fmt.Println(v + 1)
+    default:
+    fmt.Println("不支持的类型")
+}
+```
+
+可以发现，我们在使用接口时已经把它当做“动态类型”在用了，这是如何实现的？
+
+拿如下例子来看
+
+```go
+var w io.Writer
+```
+
+go是静态类型，初始化的时候默认赋0值，接口也不例外，然而，接口的零值是指它的类型和value都为nil，需要注意即使这里指定了w的类型io.Writer接口，但接口的“type”仍然是nil
+
+![ch7-01](image/ch7-01.png)
+
+```go
+w = os.Stdout
+// 注意：接口值（一个接口类型的值，简称接口值）的类型是type存放的内容，即它所存放的具体变量的类型
+fmt.Printf("%T %v\n", w, w)  // *os.File &{0xc0000520c0}
+```
+
+然后进行具体类型的赋值，这个赋值过程调用了一个具体类型到接口类型的隐式转换，这和显式的使用io.Writer(os.Stdout)是等价的。这类转换不管是显式的还是隐式的，都会刻画出操作到的类型和值。这个接口值的动态类型被设为`*os.File`指针的类型描述符，它的动态值持有os.Stdout的拷贝；这是一个代表处理标准输出的os.File类型变量的指针
+
+![ch7-02](image/ch7-02.png)
+
+```go
+w = new(bytes.Buffer)
+```
+
+赋了一个*bytes.Buffer，此时接口的效果是这样
+
+![ch7-03](image/ch7-03.png)
+
+**注意** 判断接口非空（是否为nil）是看**接口的type是否为nil而不是value**
+
+```go
+var w io.Writer  // 动态类型与动态值分别为：<nil> <nil>
+fmt.Println(w == nil)  // 动态类型为nil，所以结果为：true
+
+w = os.Stdout  // 动态类型与动态值分别为：*os.File &{0xc000052060}
+fmt.Println(w == nil)  // 动态类型不为nil，所以结果为：false
+
+w = new(bytes.Buffer)  // 动态类型与动态值分别为：*bytes.Buffer
+fmt.Println(w == nil)  // 动态类型不为nil，所以结果为：false
+
+w = nil  // 动态类型与动态值分别为：<nil> <nil>
+fmt.Println(w == nil)  // 动态类型为nil，所以结果为：true
+```
+
+error接口
+
+error的源码
+
+```go
+package errors
+
+func New(text string) error { return &errorString{text} }
+type errorString struct { text string }
+func (e *errorString) Error() string { return e.text }
+```
+
+承载errorString的类型是一个结构体而非一个字符串，这是为了保护它表示的错误避免粗心（或有意）的更新。并且因为是指针类型`*errorString`满足error接口而非errorString类型，所以每个New函数的调用都分配了一个独特的和其他错误不相同的实例。我们也不想要重要的error例如io.EOF和一个刚好有相同错误消息的error比较后相等。
+
+```go
+fmt.Println(errors.New("EOF") == errors.New("EOF")) // "false"
+```
+
+一般直接使用fmt的Errorf
+
+```go
+package fmt
+import "errors"
+
+func Errorf(format string, args ...interface{}) error {
+    return errors.New(Sprintf(format, args...))
+}
+```
+
+使用
+
+```go
+var err error = syscall.Errno(2) 
+fmt.Println(err.Error()) // "no such file or directory"
+fmt.Println(err)         // "no such file or directory"
+```
+
