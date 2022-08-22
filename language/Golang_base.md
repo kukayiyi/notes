@@ -10,6 +10,13 @@
 
 4、go默认编码UTF-8，但不推荐用中文
 
+5、代理配置。下载一些库时需要用代理(使用go module)
+
+```shell
+go env -w GOPROXY=https://goproxy.cn,direct
+go env -w GOPRIVATE=*.gitlab.com,*.gitee.com
+```
+
 ## 2、程序初级结构
 
 ### 1、命名
