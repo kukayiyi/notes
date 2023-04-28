@@ -389,7 +389,7 @@ type animaler interface {
     eat()
     sleep()
 }
-// 2、定义接口提
+// 2、定义类
 type dog struct {
     name string
     class string
